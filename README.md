@@ -124,10 +124,57 @@ we are doing simple xor encryption. We know that `a^a = 0`, `a^b = b^a`, and `(a
 ### Problem 10. Escape from the castle
 This problem was very neat. A text adventure on the shell using emojis
 
-![aa](./10-escape/escape.png)
+![escape](./10-escape/escape.png)
 
 Not super hard once you realized that most of them were standard bash commands. Walking (🚶) was `cd`, flashlight (🔦) was `ls`. For example, the ghost cannot find its ring, we find it with `🔦 -a` since it is a hidden file. Similarly, the robot wants to know its exit code, so we can do `$?`.
 
-### Problem 11
+### Problem 11. Sums
+For this problem we need to decompose a number into sums, but some numbers are forbidden. For example, we want to decompose 4, but 2 is forbidden. We can do:
 
+``` 
+4 == 1 + 1 + 1 + 1
+4 == 1 + 3
+```
+
+We are not interested in permutations of the same combination, so `1 + 1 + 2` is the same as `2 + 1 + 1`.
+
+For this problem, we can proceed incrementally. First we compute all the numbers that we can compute with 1s, then 2s... until n - 1, ignoring those that are forbidden.
+
+So, what numbers can be computed with 3s, for example? First, all that are multiples of 3: 3, 6, 9... We can combine each of these with each previous combination. So if 4 was 1 + 1 + 1 +1, 1 + 1 + 2 and 2+ 2, we have 7 is each of those + 3, 10 is each of those plus 3 + 3....
+
+In total we have an algorithm that is O(n<sup>3</sup>), which is acceptable given the conditions.
+
+### Problem 12. RSA
+
+In this problem we are given two plain texts and their encryption in RSA without padding. From that we need to find the "modulus". If we take a look at the [wikipedia article](https://en.wikipedia.org/wiki/RSA_(cryptosystem)#Encryption) we see that encryption is: 
+
+![encryption](./12-rsa/encryption.svg)
+
+Where `m` is the plain text, `e` is a constant, normally 65537, `c` is the encrypted text and `n` is the modulus that we are looking for. That means that m<sub>1</sub><sup>e</sup> - c<sub>1</sub> = λ<sub>1</sub>n where λ<sub>1</sub> is some integer. We can do that for both texts and obtain  λ<sub>1</sub>n, λ<sub>2</sub>n, if we compute the GCD, it will be a multiple of n, ideally n. Code is pretty straightforward:
+
+```go
+	m1 := getBig("plaintexts/test1.txt")
+	m2 := getBig("plaintexts/test2.txt")
+	c1 := getBig("ciphered/test1.txt")
+	c2 := getBig("ciphered/test2.txt")
+	e := big.NewInt(65537)
+	m1.Exp(m1, e, nil)
+	m2.Exp(m2, e, nil)
+	m1.Sub(m1, c1)
+	m2.Sub(m2, c2)
+	m1.GCD(nil, nil, m1, m2)
+	log.Println(m1)
+```
+
+with `getBig` defined as:
+
+
+```go 
+func getBig (file string) *big.Int {
+	m1, _ := ioutil.ReadFile(file)
+	m1b := big.NewInt(0)
+	m1b.SetBytes(m1)
+	return m1b
+}
+```
 
