@@ -31,7 +31,7 @@ There is a list of players (we don't know how many) with a hidden strength. We a
 
 Since they are completely ordered, and we want to find the maximum, we can just discard everybody that lost at least one match.
 At the end, we pick up the one that hasn't lose any.
-It could potentially mean that there are two people that have never lost, but that is just bad input, because in that case we don't have enough information.
+It could potentially mean that there are two people that have never lost, but that is just bad input, and we wouldn't have enough information.
 
 ### Problem 3. Galdos
 Third problem provides us with a copy of "Fortunata y Jacinta", and we need to be able to know the number of occurrences of each word, and it's total ranking.
@@ -62,6 +62,8 @@ Third we order them, taking into account that we have to use unicode order.
 ### Problem 4. Steam
 In this problem we need to access the pre-production environment of a certain game company.
 Pre-production is sitting inside a VPN, so we cannot access directly. However, the load balancer of production has access, so we need to trick the load balancer (NGINX) to allow us to access.
+
+![architecture](./04-steam/steam_architecture.png)
 
 For me, this was definitely the hardest problem of the first part. After trying tons of different combinations, I finally came to the one that worked:
 
@@ -178,3 +180,91 @@ func getBig (file string) *big.Int {
 }
 ```
 
+### Problem 13. Toilet paper castle
+For this problem we need to build the highest and biggest (in that order) toilet paper with toilet paper rolls. Given some constraints.
+
+Step 1: Start with the central tower. It must be at least three packs tall. From the top, it will be seen as either a square or a rectangle. If it's a rectangle, the difference between the two dimensions can only be one pack.
+
+Step 2: Surround the previous packs, by making a new rectangular layer. This layer must have a height of two packs less than the previous one.
+
+Step 3: Surround again, this time with a rectangular layer that is one pack taller than the previous one (one pack shorter than the layer that the previous step surrounded).
+
+Step 4: If the last layer was two packs tall (which means that step 3’s layer was only one pack tall), you have finished. Otherwise, repeat steps 2 to 4.
+
+
+First thing is to find a closed formula for the castle. We have three inputs, width, length and height. If we relax the rules a little bit, the smallest castle, would have just the central tower of height two.
+
+![small-castle](./13-toilet-paper/small-castle.png)
+
+In this case width is 2, length is 6 and height 2, we get a castle of size 2 x 6 x 2 which is 24.
+
+The next possible castle, with the same width and length (of the central tower) is  
+
+![medium-castle](./13-toilet-paper/medium-castle.png)
+
+This is 2 x 6 x 3 for the center, 20 x 1 for the thin layer and 28 x 2 for the outer layer, 112 rolls in total. It is hard to see how it relates with the previous level.
+ 
+ We can do the following trick. From the first castle, we add a layer of level 2 and size two more
+ 
+ ![intermediate-castle](./13-toilet-paper/intermediate-castle.png)
+ 
+ then we lower, everything but the outer layer one level, and we get the castle that we want. In formula this is:
+ 
+ ```6 x 2 x 2 + 2 (6 + 4 ) x ( 2 + 4) - (6 + 2) (2 + 2)``` 
+
+If we want to raise the castle one more level, it would be the same thing:
+
+ ```6 x 2 x 2 + 2 (6 + 4 ) x ( 2 + 4) - (6 + 2) (2 + 2) + 2 (6 + 8 ) x ( 2 + 8) - (6 + 6) (2 + 6)``` 
+
+The general formula would be:
+
+![summation-formula](./13-toilet-paper/summation-formula.png)
+
+If we expand all the multiplications and use the [formula](https://brilliant.org/wiki/sum-of-n-n2-or-n3/) for the sum numbers and the sum of squares, we get the following closed formula:
+
+![closed-formula](./13-toilet-paper/closed-formula.png)
+
+where s is the height minus 2. If we apply the formula to the previous case it would be m = 6, n = 2, s = 1 we get 112 again.
+
+Once we have a closed formula the problem is easy. For a given height, the smallest castle is the one with width and length equal to 1. We find the biggest height such that this castle can be built with the provided rolls. Once we know the height, we find maximum width and length that can be built. The performance is `O(log height)`
+
+### Problem 14. Paxos
+
+For this problem we connect through TCP to a server where the paxos protocol is implemented https://en.wikipedia.org/wiki/Paxos_(computer_science)
+
+Praxos is a protocol for distributed programming, so when we connect we see that there are several servers. Praxos has two parts, first we send a "PREPARE" message to one of the servers, where we request the serve to listen to us. Then we send an "ACCEPT" message with the actual message.
+
+In the following message, we (server 9) tell server 3 to prepare to request 1.
+```
+PREPARE {1,9} -> 3
+```
+
+Server 3 can either return `3 -> PROMISE {1,9} no_proposal` if it's ready or `PROMISE_DENIAL {1,9} {6,5}`, which means that it had received id 6 from server 5.
+
+Once we have promises, we send an accept message 
+```
+ACCEPT {id: {1,9}, value: {servers: [2,3,4,5,6,7,8,9], secret_owner: 3}} -> 2
+```
+This one tells the server 2 the new list of servers (we removed server 1) and the secret owner.
+
+In order to get the secret we need to change the secret owner, but we get "NOT TRUSTWORTHY", to get around that, we open other tcp connections, we add those servers and once we have the majority we change the secret owner.
+
+## Problem 15. DNA
+
+We need to compute the CRC32 of sparse files, that is mostly null bytes and a couple of additions. CRC32 is mostly defined by taking mod in GF(2)[x]. Simplifying, a file with n  0 bits and a 1 in the first position would be: x<sup>n</sup>. If we want to compute a file with 2n zeros it would be mod (x<sup>2n</sup>) = mod (mod (x<sup>n</sup>) mod (x<sup>n</sup>)), which converts a problem linear on the size of the file into `O(log n)`.
+
+The more difficult part here is that this is actually not true, we need a bit of preparation before the actual division. Once that is done it is easy to implement.
+1. Reverse the bits
+2. Xor the first digits with 0xFFFFFFFF
+3. Pad with four bytes
+4. Perform the division
+
+## Problem 16. Restrooms
+
+For this problem we have several groups of workers. Each group of worker can access certain floors of the building, and we need to provide the least possible number of restrooms so that everybody can go at the same time.
+
+![restrooms](./16-restrooms/restrooms.png)
+ 
+We can represent the problem with a flow chart. We have one node per group, one node per floor. Each group is connected to the floors it has access to. Additionally, we add a source that points to each group and a sink that every floor connects to. The sides from floor to sink have the capacity of the restrooms.
+
+With that graph, the max flow is the maximum amount of people that we can fit at the same time. And we just need to adjust restroom size to the minimum possible value
